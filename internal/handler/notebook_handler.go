@@ -35,7 +35,7 @@ func (h *NotebookHandler) Create(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "created"})
+	c.JSON(http.StatusCreated, gin.H{"msg": "已创建笔记本"})
 
 }
 
@@ -75,7 +75,7 @@ func (h *NotebookHandler) Update(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "updated"})
+	c.JSON(http.StatusOK, gin.H{"msg": "笔记本已更新"})
 }
 
 // 删除笔记本
@@ -89,5 +89,5 @@ func (h *NotebookHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	c.JSON(http.StatusOK, gin.H{"msg": "deleted"})
 }

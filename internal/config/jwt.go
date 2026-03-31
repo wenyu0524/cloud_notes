@@ -11,7 +11,7 @@ var JWTSecret []byte
 func InitJWT() {
 	secret := os.Getenv("JWT_SECRET")
 	if secret == "" {
-		log.Fatal("No JWT_SECRET")
+		log.Fatal("缺少 JWT_SECRET")
 	}
 	JWTSecret = []byte(secret)
 }

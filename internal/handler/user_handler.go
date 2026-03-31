@@ -17,7 +17,7 @@ type UserReq struct {
 func Register(c *gin.Context) {
 	var req UserReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": "invalid params"})
+		c.JSON(http.StatusBadRequest, gin.H{"msg": "无效参数"})
 		return
 	}
 
@@ -25,7 +25,7 @@ func Register(c *gin.Context) {
 	req.Password = strings.TrimSpace(req.Password)
 
 	if req.Username == "" || req.Password == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": "username/password cannot be empty"})
+		c.JSON(http.StatusBadRequest, gin.H{"msg": "username/password 不能为空"})
 		return
 	}
 
@@ -35,27 +35,27 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "register success"})
+	c.JSON(http.StatusOK, gin.H{"msg": "注册成功"})
 }
 
 // 登录
 func Login(c *gin.Context) {
 	var req UserReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": "invalid params"})
+		c.JSON(http.StatusBadRequest, gin.H{"msg": "无效参数"})
 		return
 	}
 
 	req.Username = strings.TrimSpace(req.Username)
 	req.Password = strings.TrimSpace(req.Password)
 	if req.Username == "" || req.Password == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": "username/password cannot be empty"})
+		c.JSON(http.StatusBadRequest, gin.H{"msg": "username/password 不能为空"})
 		return
 	}
 
 	token, err := service.Login(req.Username, req.Password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"msg": "invalid username or password"})
+		c.JSON(http.StatusUnauthorized, gin.H{"msg": "无效 username 或 password"})
 		return
 	}
 

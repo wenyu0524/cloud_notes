@@ -17,7 +17,7 @@ func NewTagService(repo *repository.TagRepository, noteRepo *repository.NoteRepo
 	return &TagService{repo: repo, noteRepo: noteRepo}
 }
 
-var ErrTagNameExists = errors.New("tag name already exists")
+var ErrTagNameExists = errors.New("标签名已存在")
 
 func (s *TagService) Create(userID uint, name string) (*model.Tag, error) {
 	if _, err := s.repo.FindByUserAndName(userID, name); err == nil {
@@ -69,7 +69,7 @@ func (s *TagService) BindNoteTags(userID, noteID uint, tagIDs []uint) error {
 			return err
 		}
 		if tag.UserID != userID {
-			return errors.New("no permission")
+			return errors.New("无权限")
 		}
 	}
 
@@ -83,7 +83,7 @@ func (s *TagService) GetNotesByTag(userID, tagID uint) ([]model.Note, error) {
 		return nil, err
 	}
 	if tag.UserID != userID {
-		return nil, errors.New("no permission")
+		return nil, errors.New("无权限")
 	}
 	return s.repo.FindNotesByTag(tagID)
 }
@@ -94,7 +94,7 @@ func (s *TagService) Delete(userID, tagID uint) error {
 		return err
 	}
 	if tag.UserID != userID {
-		return errors.New("no permission")
+		return errors.New("无权限")
 	}
 
 	// 先删关联表，再删 tag

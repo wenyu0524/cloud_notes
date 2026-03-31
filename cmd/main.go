@@ -11,7 +11,7 @@ import (
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		log.Println("warning: .env not loaded:", err)
+		log.Println("warning: .env 未加载:", err)
 	}
 
 	config.InitDB()

@@ -35,7 +35,7 @@ func (h *TagHandler) Create(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{"message": "created"})
+	c.JSON(http.StatusCreated, gin.H{"msg": "标签已创建"})
 }
 
 func (h *TagHandler) List(c *gin.Context) {
@@ -55,7 +55,7 @@ func (h *TagHandler) BindNoteTags(c *gin.Context) {
 
 	noteID, err := strconv.Atoi(c.Param("id"))
 	if err != nil || noteID <= 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid note id"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "无效笔记ID"})
 		return
 	}
 
@@ -68,7 +68,7 @@ func (h *TagHandler) BindNoteTags(c *gin.Context) {
 	}
 
 	if err := h.service.BindNoteTags(userID, uint(noteID), req.TagIDs); err != nil {
-		if err.Error() == "no permission" {
+		if err.Error() == "无权限" {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
 		}
@@ -76,7 +76,7 @@ func (h *TagHandler) BindNoteTags(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "tags updated"})
+	c.JSON(http.StatusOK, gin.H{"msg": "标签已更新"})
 }
 
 func (h *TagHandler) GetNotesByTag(c *gin.Context) {
@@ -99,16 +99,16 @@ func (h *TagHandler) Delete(c *gin.Context) {
 	err := h.service.Delete(userID, uint(tagID))
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": "tag not found"})
+			c.JSON(http.StatusNotFound, gin.H{"error": "未找到标签"})
 			return
 		}
 		if err.Error() == "no permission" {
 			c.JSON(http.StatusForbidden, gin.H{"error": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "delete failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "标签删除失败"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "deleted"})
+	c.JSON(http.StatusOK, gin.H{"msg": "标签已删除"})
 }

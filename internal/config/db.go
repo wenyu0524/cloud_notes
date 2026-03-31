@@ -15,14 +15,14 @@ func InitDB() {
 
 	dsn := os.Getenv("MYSQL_DSN")
 	if dsn == "" {
-		log.Fatal(" No MYSQL_DSN")
+		log.Fatal("没有 MYSQL_DSN")
 	}
 
 	var err error
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 
 	if err != nil {
-		log.Fatal("failed to connect database：" + err.Error())
+		log.Fatal("连接数据库出错：" + err.Error())
 	}
 	DB.AutoMigrate(
 		&model.User{},

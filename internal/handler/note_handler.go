@@ -42,11 +42,11 @@ func (h *NoteHandler) Create(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"msg": "create failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": "创建失败"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "created"})
+	c.JSON(http.StatusOK, gin.H{"msg": "笔记已创建"})
 }
 
 // 查询笔记
@@ -57,7 +57,7 @@ func (h *NoteHandler) List(c *gin.Context) {
 
 	notes, err := h.service.ListNotes(userID, notebookID, tag)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"msg": "query failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": "查询失败"})
 		return
 	}
 
@@ -90,11 +90,11 @@ func (h *NoteHandler) Update(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, gin.H{"msg": err.Error()})
 			return
 		}
-		c.JSON(http.StatusNotFound, gin.H{"msg": "note not found"})
+		c.JSON(http.StatusNotFound, gin.H{"msg": "未找到笔记"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "updated"})
+	c.JSON(http.StatusOK, gin.H{"msg": "笔记已更新"})
 }
 
 // 删除笔记
@@ -104,12 +104,12 @@ func (h *NoteHandler) Delete(c *gin.Context) {
 
 	if err := h.service.DeleteNote(id, userID); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"msg": "note not found"})
+			c.JSON(http.StatusNotFound, gin.H{"msg": "未找到笔记"})
 			return
 		}
-		c.JSON(http.StatusInternalServerError, gin.H{"msg": "delete failed"})
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": "删除失败"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "deleted"})
+	c.JSON(http.StatusOK, gin.H{"msg": "笔记已删除"})
 }
