@@ -30,5 +30,6 @@ func InitDB() {
 		&model.Notebook{},
 		&model.Tag{},
 		&model.NoteTag{},
+		&model.Session{},
 	)
 }

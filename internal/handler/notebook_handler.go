@@ -89,5 +89,5 @@ func (h *NotebookHandler) Delete(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"msg": "deleted"})
+	c.JSON(http.StatusOK, gin.H{"msg": "笔记本已删除"})
 }

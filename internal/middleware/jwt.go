@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"cloud_notes/internal/config"
+	"cloud_notes/internal/repository"
 	"net/http"
 	"strings"
 
@@ -57,7 +58,7 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		// 5、检验user_id
+		// 5、检验user_id 和 device_id
 		v, exists := claims["user_id"]
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"msg": "claims 缺少 user_id"})
@@ -71,7 +72,35 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
+		dv, exists := claims["device_id"]
+		if !exists {
+			c.JSON(http.StatusUnauthorized, gin.H{"msg": "claims 缺少 device_id"})
+			c.Abort()
+			return
+		}
+		deviceID, ok := dv.(string)
+		if !ok || deviceID == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"msg": "无效 device_id"})
+			c.Abort()
+			return
+		}
+
+		// 6、验证session
+		session, err := repository.GetSessionByUserAndDevice(uint(userID), deviceID)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"msg": "登录已失效"})
+			c.Abort()
+			return
+		}
+
+		// 7、更新last_active_at
+		err = repository.UpdateSessionLastActive(uint(userID), deviceID)
+		if err != nil {
+			// 可选：记录错误，但不中断请求
+		}
+
 		c.Set("user_id", uint(userID))
+		c.Set("device_id", deviceID)
 
 		c.Next()
 	}

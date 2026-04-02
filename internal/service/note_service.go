@@ -15,7 +15,7 @@ func NewNoteService(repo *repository.NoteRepository, nbRepo *repository.Notebook
 	return &NoteService{repo: repo, notebookRepo: nbRepo}
 }
 
-var ErrNoteTitleExists = errors.New("note title already exists")
+var ErrNoteTitleExists = errors.New("笔记标题已存在")
 
 func (s *NoteService) CreateNote(userID, notebookID uint, title, content string) error {
 	// notebook_id没传则放入默认笔记本
@@ -27,7 +27,7 @@ func (s *NoteService) CreateNote(userID, notebookID uint, title, content string)
 		notebookID = nb.ID
 	} else {
 		if _, err := s.notebookRepo.FindByIDAndUser(notebookID, userID); err != nil {
-			return errors.New("invalid notebook_id")
+			return errors.New("无效的 notebook_id")
 		}
 	}
 

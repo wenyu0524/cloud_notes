@@ -19,7 +19,7 @@ func NewNotebookService(db *gorm.DB, repo *repository.NotebookRepository, noteRe
 }
 
 // 创建笔记本
-var ErrNotebookNameExists = errors.New("notebook name already exists")
+var ErrNotebookNameExists = errors.New("笔记本名称已存在")
 
 func (s *NotebookService) Create(userID uint, name string) (*model.Notebook, error) {
 	// 1) 预检查：同一用户下 name 唯一
@@ -49,12 +49,12 @@ func (s *NotebookService) Update(userID, notebookID uint, name string) error {
 		return err
 	}
 	if nb.UserID != userID {
-		return errors.New("no permission")
+		return errors.New("无权限")
 	}
 
 	// 不允许把默认笔记本改名
 	if nb.IsDefault {
-		return errors.New("default notebook cannot be renamed")
+		return errors.New("默认笔记本不能被重命名")
 	}
 
 	// 更新保证同一用户下name唯一
@@ -76,7 +76,7 @@ func (s *NotebookService) Delete(userID, notebookID uint) error {
 		return err
 	}
 	if nb.UserID != userID {
-		return errors.New("no permission")
+		return errors.New("无权限")
 	}
 
 	// 2、事务：先删子表，再删父表

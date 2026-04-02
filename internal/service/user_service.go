@@ -5,6 +5,7 @@ import (
 	"cloud_notes/internal/repository"
 	"errors"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
@@ -15,13 +16,13 @@ func Register(username, password string) error {
 	password = strings.TrimSpace(password)
 
 	if username == "" || password == "" {
-		return errors.New("username/password cannot be empty")
+		return errors.New("username/password 不能为空")
 	}
 
 	// 验证是否用户名已存在
 	u, err := repository.GetUserByUsername(username)
 	if err == nil && u != nil {
-		return errors.New("username already exists")
+		return errors.New("username 已经存在")
 	}
 
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -42,21 +43,70 @@ func Register(username, password string) error {
 }
 
 // 登录
-func Login(username, password string) (string, error) {
+func Login(username, password, deviceID string) (string, error) {
 	username = strings.TrimSpace(username)
 	password = strings.TrimSpace(password)
-	if username == "" || password == "" {
-		return "", errors.New("invalid username or password")
+	deviceID = strings.TrimSpace(deviceID)
+	if username == "" || password == "" || deviceID == "" {
+		return "", errors.New("无效的 username 或 password 或 device_id")
 	}
 
 	user, err := repository.GetUserByUsername(username)
 	if err != nil {
-		return "", errors.New("invalid username or password")
+		return "", errors.New("无效的 username 或 password")
 	}
 
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
-		return "", errors.New("invalid username or password")
+		return "", errors.New("无效的 username 或 password")
 	}
 
-	return GenerateToken(user.ID)
+	// 处理session
+	err = manageSession(user.ID, deviceID)
+	if err != nil {
+		return "", errors.New("session 管理失败")
+	}
+
+	return GenerateToken(user.ID, deviceID)
+}
+
+// 管理session：检查活跃数量，删除旧的，创建新的
+func manageSession(userID uint, deviceID string) error {
+	count, err := repository.GetActiveSessionCount(userID)
+	if err != nil {
+		return err
+	}
+
+	if count >= 2 {
+		// 删除最旧的session
+		sessions, err := repository.GetActiveSessionsByUserID(userID)
+		if err != nil {
+			return err
+		}
+		if len(sessions) > 0 {
+			err = repository.DeleteSession(sessions[0].UserID, sessions[0].DeviceID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// 创建新session
+	session := model.Session{
+		UserID:       userID,
+		DeviceID:     deviceID,
+		ExpiredAt:    time.Now().Add(7 * 24 * time.Hour), // 7天过期
+		LastActiveAt: time.Now(),
+		CreatedAt:    time.Now(),
+	}
+	return repository.CreateOrUpdateSession(&session)
+}
+
+// 单设备登出
+func Logout(userID uint, deviceID string) error {
+	return repository.DeleteSession(userID, deviceID)
+}
+
+// 全局登出
+func LogoutAll(userID uint) error {
+	return repository.DeleteAllSessionsByUserID(userID)
 }

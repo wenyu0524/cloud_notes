@@ -13,6 +13,12 @@ type UserReq struct {
 	Password string `json:"password" binding:"required,min=6,max=72"`
 }
 
+type LoginReq struct {
+	Username string `json:"username" binding:"required,min=1,max=64"`
+	Password string `json:"password" binding:"required,min=6,max=72"`
+	DeviceID string `json:"device_id" binding:"required,min=1,max=128"`
+}
+
 // 注册
 func Register(c *gin.Context) {
 	var req UserReq
@@ -25,7 +31,7 @@ func Register(c *gin.Context) {
 	req.Password = strings.TrimSpace(req.Password)
 
 	if req.Username == "" || req.Password == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": "username/password 不能为空"})
+		c.JSON(http.StatusBadRequest, gin.H{"msg": "用户名和密码不能为空"})
 		return
 	}
 
@@ -40,7 +46,7 @@ func Register(c *gin.Context) {
 
 // 登录
 func Login(c *gin.Context) {
-	var req UserReq
+	var req LoginReq
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"msg": "无效参数"})
 		return
@@ -48,16 +54,57 @@ func Login(c *gin.Context) {
 
 	req.Username = strings.TrimSpace(req.Username)
 	req.Password = strings.TrimSpace(req.Password)
-	if req.Username == "" || req.Password == "" {
-		c.JSON(http.StatusBadRequest, gin.H{"msg": "username/password 不能为空"})
+	req.DeviceID = strings.TrimSpace(req.DeviceID)
+	if req.Username == "" || req.Password == "" || req.DeviceID == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"msg": "username/password/device_id 不能为空"})
 		return
 	}
 
-	token, err := service.Login(req.Username, req.Password)
+	token, err := service.Login(req.Username, req.Password, req.DeviceID)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"msg": "无效 username 或 password"})
+		c.JSON(http.StatusUnauthorized, gin.H{"msg": "无效的 username 或 password"})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"token": token})
+}
+
+// 单设备登出
+func Logout(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"msg": "未认证"})
+		return
+	}
+
+	deviceID, exists := c.Get("device_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"msg": "缺少 device_id"})
+		return
+	}
+
+	err := service.Logout(userID.(uint), deviceID.(string))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": "登出失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"msg": "登出成功"})
+}
+
+// 全局登出
+func LogoutAll(c *gin.Context) {
+	userID, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"msg": "未认证"})
+		return
+	}
+
+	err := service.LogoutAll(userID.(uint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"msg": "全局登出失败"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"msg": "全局登出成功"})
 }

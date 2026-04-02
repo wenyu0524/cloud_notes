@@ -21,6 +21,10 @@ func SetupRouter(r *gin.Engine) {
 	// 登录
 	auth := api.Group("")
 	auth.Use(middleware.JWTAuth())
+	{
+		auth.POST("/logout", handler.Logout)
+		auth.POST("/logout-all", handler.LogoutAll)
+	}
 
 	// 笔记模块
 	noteRepo := repository.NewNoteRepository(config.DB)
