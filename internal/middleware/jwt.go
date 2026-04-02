@@ -86,7 +86,7 @@ func JWTAuth() gin.HandlerFunc {
 		}
 
 		// 6、验证session
-		session, err := repository.GetSessionByUserAndDevice(uint(userID), deviceID)
+		_, err = repository.GetSessionByUserAndDevice(uint(userID), deviceID)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"msg": "登录已失效"})
 			c.Abort()
