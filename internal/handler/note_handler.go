@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"cloud_notes/internal/model"
 	"cloud_notes/internal/service"
 	"errors"
 	"net/http"
@@ -54,8 +55,19 @@ func (h *NoteHandler) List(c *gin.Context) {
 	userID := c.GetUint("user_id")
 	notebookID := c.Query("notebook_id")
 	tag := c.Query("tag")
+	query := c.Query("q") // 新增搜索参数
 
-	notes, err := h.service.ListNotes(userID, notebookID, tag)
+	var notes []model.Note
+	var err error
+
+	if query != "" {
+		// 全文搜索
+		notes, err = h.service.SearchNotes(userID, query, notebookID, tag)
+	} else {
+		// 普通列表
+		notes, err = h.service.ListNotes(userID, notebookID, tag)
+	}
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"msg": "查询失败"})
 		return

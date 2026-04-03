@@ -81,6 +81,15 @@ func (s *NoteService) UpdateNote(id string, userID uint, title string, content s
 	return s.repo.Update(note)
 }
 
+func (s *NoteService) SearchNotes(
+	userID uint,
+	query string,
+	notebookID string,
+	tag string,
+) ([]model.Note, error) {
+	return s.repo.SearchNotes(userID, query, notebookID, tag)
+}
+
 func (s *NoteService) DeleteNote(
 	id string,
 	userID uint,

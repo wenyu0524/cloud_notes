@@ -4,6 +4,7 @@ import (
 	"cloud_notes/internal/model"
 	"log"
 	"os"
+	"strings"
 
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -32,4 +33,21 @@ func InitDB() {
 		&model.NoteTag{},
 		&model.Session{},
 	)
+
+	createFulltextIndexes()
+}
+
+func createFulltextIndexes() {
+	// MySQL 需要 FULLTEXT 索引才能使用 MATCH ... AGAINST
+	if err := DB.Exec(`CREATE FULLTEXT INDEX idx_notes_fulltext ON notes(title, content)`).Error; err != nil {
+		if !strings.Contains(err.Error(), "Duplicate key name") {
+			log.Println("createFulltextIndexes notes error:", err)
+		}
+	}
+
+	if err := DB.Exec(`CREATE FULLTEXT INDEX idx_tags_name ON tags(name)`).Error; err != nil {
+		if !strings.Contains(err.Error(), "Duplicate key name") {
+			log.Println("createFulltextIndexes tags error:", err)
+		}
+	}
 }

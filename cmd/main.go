@@ -17,9 +17,9 @@ func main() {
 	config.InitDB()
 	config.InitJWT()
 
-	r := gin.Default() // 初始化Gin
+	r := gin.Default()
 
-	router.SetupRouter(r) //注册路由
+	router.SetupRouter(r)
 
 	r.Run(":8080")
 }
