@@ -77,13 +77,13 @@ func manageSession(userID uint, deviceID string) error {
 	}
 
 	if count >= 2 {
-		// 删除最旧的session
+		// 撤销最旧的session（软删除，支持审计）
 		sessions, err := repository.GetActiveSessionsByUserID(userID)
 		if err != nil {
 			return err
 		}
 		if len(sessions) > 0 {
-			err = repository.DeleteSession(sessions[0].UserID, sessions[0].DeviceID)
+			err = repository.RevokeSession(sessions[0].UserID, sessions[0].DeviceID)
 			if err != nil {
 				return err
 			}
@@ -103,10 +103,10 @@ func manageSession(userID uint, deviceID string) error {
 
 // 单设备登出
 func Logout(userID uint, deviceID string) error {
-	return repository.DeleteSession(userID, deviceID)
+	return repository.RevokeSession(userID, deviceID)
 }
 
 // 全局登出
 func LogoutAll(userID uint) error {
-	return repository.DeleteAllSessionsByUserID(userID)
+	return repository.RevokeAllSessionsByUserID(userID)
 }

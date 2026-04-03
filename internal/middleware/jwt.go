@@ -93,7 +93,15 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		// 7、更新last_active_at
+		// 7、检查活跃设备数量（防止超出限制）
+		count, err := repository.GetActiveSessionCount(uint(userID))
+		if err != nil || count > 2 {
+			c.JSON(http.StatusUnauthorized, gin.H{"msg": "超出设备限制"})
+			c.Abort()
+			return
+		}
+
+		// 8、更新last_active_at
 		err = repository.UpdateSessionLastActive(uint(userID), deviceID)
 		if err != nil {
 			// 可选：记录错误，但不中断请求

@@ -21,34 +21,54 @@ func CreateOrUpdateSession(session *model.Session) error {
 	return config.DB.Create(session).Error
 }
 
-// 根据user_id获取活跃session数量（未过期）
+// 根据user_id获取活跃session数量（未过期且未撤销）
 func GetActiveSessionCount(userID uint) (int64, error) {
 	var count int64
-	err := config.DB.Model(&model.Session{}).Where("user_id = ? AND expired_at > ?", userID, time.Now()).Count(&count).Error
+	err := config.DB.Model(&model.Session{}).
+		Where("user_id = ? AND expired_at > ? AND revoked_at IS NULL", userID, time.Now()).
+		Count(&count).Error
 	return count, err
 }
 
 // 根据user_id获取所有活跃session，按last_active_at排序
 func GetActiveSessionsByUserID(userID uint) ([]model.Session, error) {
 	var sessions []model.Session
-	err := config.DB.Where("user_id = ? AND expired_at > ?", userID, time.Now()).Order("last_active_at ASC").Find(&sessions).Error
+	err := config.DB.Where("user_id = ? AND expired_at > ? AND revoked_at IS NULL", userID, time.Now()).
+		Order("last_active_at ASC").
+		Find(&sessions).Error
 	return sessions, err
 }
 
-// 删除session
+// 删除session（硬删除，兼容旧逻辑）
 func DeleteSession(userID uint, deviceID string) error {
 	return config.DB.Where("user_id = ? AND device_id = ?", userID, deviceID).Delete(&model.Session{}).Error
 }
 
-// 删除用户所有session
+// 删除用户所有session（硬删除）
 func DeleteAllSessionsByUserID(userID uint) error {
 	return config.DB.Where("user_id = ?", userID).Delete(&model.Session{}).Error
 }
 
-// 根据user_id和device_id获取session
+// 撤销session（软删除，以支持黑名单逻辑）
+func RevokeSession(userID uint, deviceID string) error {
+	now := time.Now()
+	return config.DB.Model(&model.Session{}).
+		Where("user_id = ? AND device_id = ? AND revoked_at IS NULL", userID, deviceID).
+		Updates(map[string]interface{}{"revoked_at": now}).Error
+}
+
+// 撤销用户所有session（软删除）
+func RevokeAllSessionsByUserID(userID uint) error {
+	now := time.Now()
+	return config.DB.Model(&model.Session{}).
+		Where("user_id = ? AND revoked_at IS NULL", userID).
+		Updates(map[string]interface{}{"revoked_at": now}).Error
+}
+
+// 根据user_id和device_id获取session（必须未撤销）
 func GetSessionByUserAndDevice(userID uint, deviceID string) (*model.Session, error) {
 	var session model.Session
-	err := config.DB.Where("user_id = ? AND device_id = ? AND expired_at > ?", userID, deviceID, time.Now()).First(&session).Error
+	err := config.DB.Where("user_id = ? AND device_id = ? AND expired_at > ? AND revoked_at IS NULL", userID, deviceID, time.Now()).First(&session).Error
 	if err != nil {
 		return nil, err
 	}
