@@ -4,7 +4,11 @@ import (
 	"cloud_notes/internal/model"
 	"cloud_notes/internal/repository"
 	"errors"
+	"fmt"
+	"time"
 )
+
+const noteListCacheTTL = 30 * time.Second
 
 type NoteService struct {
 	repo         *repository.NoteRepository
@@ -46,7 +50,13 @@ func (s *NoteService) CreateNote(userID, notebookID uint, title, content string)
 		Title:      title,
 		Content:    content,
 	}
-	return s.repo.Create(note)
+
+	err = s.repo.Create(note)
+	if err != nil {
+		return err
+	}
+	_ = repository.DeleteCacheByPattern(fmt.Sprintf("cache:notes:user:%d:*", userID))
+	return nil
 }
 
 func (s *NoteService) ListNotes(
@@ -54,7 +64,19 @@ func (s *NoteService) ListNotes(
 	notebookID string,
 	tag string,
 ) ([]model.Note, error) {
-	return s.repo.List(userID, notebookID, tag)
+	cacheKey := repository.CacheKeyNotes(userID, notebookID, tag)
+	var notes []model.Note
+	hit, err := repository.GetCache(cacheKey, &notes)
+	if err == nil && hit {
+		return notes, nil
+	}
+
+	notes, err = s.repo.List(userID, notebookID, tag)
+	if err != nil {
+		return nil, err
+	}
+	_ = repository.SetCache(cacheKey, notes, noteListCacheTTL)
+	return notes, nil
 }
 
 func (s *NoteService) UpdateNote(id string, userID uint, title string, content string) error {
@@ -78,7 +100,12 @@ func (s *NoteService) UpdateNote(id string, userID uint, title string, content s
 	// content允许为空覆盖
 	note.Content = content
 
-	return s.repo.Update(note)
+	err = s.repo.Update(note)
+	if err != nil {
+		return err
+	}
+	_ = repository.DeleteCacheByPattern(fmt.Sprintf("cache:notes:user:%d:*", userID))
+	return nil
 }
 
 func (s *NoteService) SearchNotes(
@@ -94,5 +121,10 @@ func (s *NoteService) DeleteNote(
 	id string,
 	userID uint,
 ) error {
-	return s.repo.Delete(id, userID)
+	err := s.repo.Delete(id, userID)
+	if err != nil {
+		return err
+	}
+	_ = repository.DeleteCacheByPattern(fmt.Sprintf("cache:notes:user:%d:*", userID))
+	return nil
 }

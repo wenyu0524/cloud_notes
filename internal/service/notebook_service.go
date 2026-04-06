@@ -4,6 +4,8 @@ import (
 	"cloud_notes/internal/model"
 	"cloud_notes/internal/repository"
 	"errors"
+	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -34,12 +36,30 @@ func (s *NotebookService) Create(userID uint, name string) (*model.Notebook, err
 		UserID: userID,
 		Name:   name,
 	}
-	return nb, s.repo.Create(nb)
+	err := s.repo.Create(nb)
+	if err != nil {
+		return nil, err
+	}
+	_ = repository.DeleteCacheByPattern(fmt.Sprintf("cache:notebooks:user:%d", userID))
+	_ = repository.DeleteCacheByPattern(fmt.Sprintf("cache:notes:user:%d:*", userID))
+	return nb, nil
 }
 
 // 查询笔记本列表
 func (s *NotebookService) List(userID uint) ([]model.Notebook, error) {
-	return s.repo.FindByUser(userID)
+	cacheKey := repository.CacheKeyNotebooks(userID)
+	var notebooks []model.Notebook
+	hit, err := repository.GetCache(cacheKey, &notebooks)
+	if err == nil && hit {
+		return notebooks, nil
+	}
+
+	notebooks, err = s.repo.FindByUser(userID)
+	if err != nil {
+		return nil, err
+	}
+	_ = repository.SetCache(cacheKey, notebooks, 60*time.Second)
+	return notebooks, nil
 }
 
 // 更新笔记本
@@ -65,7 +85,13 @@ func (s *NotebookService) Update(userID, notebookID uint, name string) error {
 	}
 
 	nb.Name = name
-	return s.repo.Update(nb)
+	err = s.repo.Update(nb)
+	if err != nil {
+		return err
+	}
+	_ = repository.DeleteCacheByPattern(fmt.Sprintf("cache:notebooks:user:%d", userID))
+	_ = repository.DeleteCacheByPattern(fmt.Sprintf("cache:notes:user:%d:*", userID))
+	return nil
 }
 
 // 删除笔记本
@@ -80,7 +106,7 @@ func (s *NotebookService) Delete(userID, notebookID uint) error {
 	}
 
 	// 2、事务：先删子表，再删父表
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	err = s.db.Transaction(func(tx *gorm.DB) error {
 		// 用事务的tx创建一组repo（保证同一事务连接）
 		noteRepo := repository.NewNoteRepository(tx)
 		nbRepo := repository.NewNotebookRepository(tx)
@@ -96,4 +122,10 @@ func (s *NotebookService) Delete(userID, notebookID uint) error {
 		}
 		return nil
 	})
+	if err != nil {
+		return err
+	}
+	_ = repository.DeleteCacheByPattern(fmt.Sprintf("cache:notebooks:user:%d", userID))
+	_ = repository.DeleteCacheByPattern(fmt.Sprintf("cache:notes:user:%d:*", userID))
+	return nil
 }

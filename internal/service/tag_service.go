@@ -4,6 +4,8 @@ import (
 	"cloud_notes/internal/model"
 	"cloud_notes/internal/repository"
 	"errors"
+	"fmt"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -30,11 +32,28 @@ func (s *TagService) Create(userID uint, name string) (*model.Tag, error) {
 		UserID: userID,
 		Name:   name,
 	}
-	return tag, s.repo.Create(tag)
+	err := s.repo.Create(tag)
+	if err != nil {
+		return nil, err
+	}
+	_ = repository.DeleteCacheByPattern(fmt.Sprintf("cache:tags:user:%d", userID))
+	return tag, nil
 }
 
 func (s *TagService) List(userID uint) ([]model.Tag, error) {
-	return s.repo.FindByUser(userID)
+	cacheKey := repository.CacheKeyTags(userID)
+	var tags []model.Tag
+	hit, err := repository.GetCache(cacheKey, &tags)
+	if err == nil && hit {
+		return tags, nil
+	}
+
+	tags, err = s.repo.FindByUser(userID)
+	if err != nil {
+		return nil, err
+	}
+	_ = repository.SetCache(cacheKey, tags, 60*time.Second)
+	return tags, nil
 }
 
 func uniqUint(ids []uint) []uint {
@@ -74,7 +93,12 @@ func (s *TagService) BindNoteTags(userID, noteID uint, tagIDs []uint) error {
 	}
 
 	// 4) 绑定（当前语义：覆盖绑定；tagIDs 为空表示清空）
-	return s.repo.BindNoteTags(noteID, tagIDs)
+	err := s.repo.BindNoteTags(noteID, tagIDs)
+	if err != nil {
+		return err
+	}
+	_ = repository.DeleteCacheByPattern(fmt.Sprintf("cache:notes:user:%d:*", userID))
+	return nil
 }
 
 func (s *TagService) GetNotesByTag(userID, tagID uint) ([]model.Note, error) {
@@ -101,5 +125,11 @@ func (s *TagService) Delete(userID, tagID uint) error {
 	if err := s.repo.DeleteNoteTagsByTagID(tagID); err != nil {
 		return err
 	}
-	return s.repo.Delete(tagID)
+	err = s.repo.Delete(tagID)
+	if err != nil {
+		return err
+	}
+	_ = repository.DeleteCacheByPattern(fmt.Sprintf("cache:tags:user:%d", userID))
+	_ = repository.DeleteCacheByPattern(fmt.Sprintf("cache:notes:user:%d:*", userID))
+	return nil
 }
