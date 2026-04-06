@@ -15,7 +15,7 @@ func SetupRouter(r *gin.Engine) {
 	api := r.Group("/api")
 	{
 		api.POST("/register", handler.Register)
-		api.POST("/login", handler.Login)
+		api.POST("/login", middleware.LoginRateLimit(), handler.Login)
 	}
 
 	// 登录

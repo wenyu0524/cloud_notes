@@ -5,6 +5,7 @@ import (
 	"cloud_notes/internal/repository"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -46,6 +47,14 @@ func JWTAuth() gin.HandlerFunc {
 
 		if err != nil || !token.Valid {
 			c.JSON(http.StatusUnauthorized, gin.H{"msg": "无效 token"})
+			c.Abort()
+			return
+		}
+
+		// 3.5、检查token是否在黑名单中（登出即时失效）
+		isBlacklisted, err := repository.IsTokenBlacklisted(tokenStr)
+		if err == nil && isBlacklisted {
+			c.JSON(http.StatusUnauthorized, gin.H{"msg": "token 已被撤销"})
 			c.Abort()
 			return
 		}
@@ -103,8 +112,8 @@ func JWTAuth() gin.HandlerFunc {
 
 		// 8、更新last_active_at
 		err = repository.UpdateSessionLastActive(uint(userID), deviceID)
-		if err != nil {
-			// 可选：记录错误，但不中断请求
+		if err == nil {
+			_ = repository.AddDeviceToActiveSet(uint(userID), deviceID, float64(time.Now().Unix()))
 		}
 
 		c.Set("user_id", uint(userID))

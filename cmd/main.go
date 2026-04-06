@@ -16,6 +16,8 @@ func main() {
 
 	config.InitDB()
 	config.InitJWT()
+	config.InitRedis()
+	defer config.CloseRedis()
 
 	r := gin.Default()
 
