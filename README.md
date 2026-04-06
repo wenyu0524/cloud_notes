@@ -1,129 +1,143 @@
------
-
 # Cloud Notes - 云端笔记管理系统
 
-[](https://golang.org)
-[](https://gin-gonic.com)
-[](https://gorm.io)
-[](https://www.google.com/search?q=LICENSE)
-
-Cloud Notes 是一个基于 Go 语言开发的云端笔记管理系统，提供高性能的 RESTful API 接口。本项目采用 **Clean Architecture** 分层架构，支持多用户隔离、笔记本分类及灵活的标签系统，适用于个人笔记存储或协作场景。
-
------
+Cloud Notes 是一个基于 Go 语言开发的云端笔记管理系统，提供高性能的 RESTful API 接口。本项目采用 Clean Architecture 分层架构，支持多用户隔离、笔记本分类、标签系统和会话安全策略，适用于个人笔记存储和协作场景。
 
 ## 核心功能
 
-  * **用户系统**: 支持注册、登录，基于 JWT 的状态保持（24小时有效），密码采用 `bcrypt` 强哈希加密。
-  * **笔记管理**: 创建、编辑、删除笔记，支持富文本内容，提供自动分配默认笔记本功能。
-  * **组织架构**: 笔记本层级分类，支持在笔记本内保证标题唯一性。
-  * **标签系统**: 灵活的多对多标签关联，支持去重及按标签快速过滤。
-  * **全文搜索**: 支持 `q` 关键词搜索（标题/内容/标签），兼容短词与模糊匹配。
-  * **安全保障**: 数据实现物理层级的用户隔离，使用数据库事务确保联级操作的数据一致性。
-
------
+- **用户系统**: 注册与登录，基于 JWT 的认证，密码使用 `bcrypt` 哈希。
+- **笔记管理**: 创建、编辑、删除笔记，支持富文本与默认笔记本机制。
+- **笔记本组织**: 管理笔记本，支持级联删除及标题唯一性。
+- **标签系统**: 支持多对多标签关联、按标签过滤和标签删除时解绑。
+- **全文搜索**: 支持 `q` 关键词搜索，覆盖标题、内容与标签。
+- **安全与会话管理**: JWT 黑名单即时失效、活跃设备限制、登录限流和 Redis 缓存加速。
 
 ## 技术栈
 
 | 维度 | 技术选型 | 说明 |
 | :--- | :--- | :--- |
 | **语言** | Go 1.25.5 | 高效并发编程语言 |
-| **Web 框架** | Gin v1.11.0 | 轻量级、高性能 HTTP 框架 |
-| **数据库** | MySQL | 关系型数据库，存储持久化数据 |
-| **ORM** | GORM | 自动迁移 (Auto-migrate) 与 复杂 SQL 映射 |
-| **鉴权** | JWT (HS256) | 基于 Token 的无状态身份验证 |
-| **配置** | godotenv | 环境变量管理 |
-
------
+| **Web 框架** | Gin | 轻量级、高性能 HTTP 框架 |
+| **数据库** | MySQL | 持久化存储 |
+| **ORM** | GORM | 结构化数据库访问 |
+| **鉴权** | JWT (HS256) | 无状态认证 |
+| **缓存/会话** | Redis | Token 黑名单、设备集合、登录限流、结果缓存 |
+| **配置** | godotenv | 环境变量加载 |
 
 ## 系统架构
 
-项目遵循 **Clean Architecture** 设计原则，确保了业务逻辑与底层实现的高度解耦：
+项目遵循 Clean Architecture 设计，确保业务逻辑、HTTP 处理和数据访问相互独立：
 
-  * `Handler 层`: 负责路由分发、参数绑定及 HTTP 响应。
-  * `Service 层`: 核心业务逻辑实现，处理权限检查与复杂业务规约。
-  * `Repository 层`: 数据访问层，封装 GORM 操作。
-  * `Model 层`: 定义数据库 Schema 及 GORM 标签。
-  * `Middleware 层`: 拦截器（如 JWT 鉴权中间件）。
-
------
+- `handler/` - HTTP 请求处理与响应。
+- `service/` - 业务逻辑和会话管理。
+- `repository/` - 数据访问和 Redis 支持。
+- `model/` - 数据实体定义。
+- `middleware/` - JWT 认证与登录限流。
+- `router/` - 路由注册与分组。
 
 ## API 概览
 
-所有受保护接口需携带：`Authorization: Bearer <your_token>`
+所有受保护接口需携带：`Authorization: Bearer <token>`。
 
 ### 公共接口
 
-  * `POST /api/register` - 用户注册
-  * `POST /api/login` - 用户登录
+- `POST /api/register` - 用户注册
+- `POST /api/login` - 用户登录
 
-### 笔记与组织
+### 认证后接口
 
-  * `GET /api/notes` - 列表查询（支持 `notebook_id`, `tag` 过滤，并新增 `q` 关键词搜索：`q=<关键词>`）
-  * `POST /api/notes` - 创建笔记
-  * `PUT /api/notes/:id` - 更新笔记
-  * `DELETE /api/notes/:id` - 删除笔记
-  * `GET /api/notebooks` - 列出笔记本
-  * `POST /api/notebooks` - 创建笔记本
-  * `PUT /api/notebooks/:id` - 更新笔记本信息
-  * `DELETE /api/notebooks/:id` - 删除笔记本（级联删除笔记）
-  * `GET /api/tags` - 列出标签
-  * `POST /api/tags` - 创建标签
-  * `DELETE /api/tags/:id` - 级联解绑并删除标签
+- `POST /api/logout` - 单设备登出
+- `POST /api/logout-all` - 退出所有设备
 
------
+### 笔记管理
+
+- `GET /api/notes` - 查询笔记（支持 `notebook_id`, `tag`, `q`）
+- `POST /api/notes` - 创建笔记
+- `PUT /api/notes/:id` - 更新笔记
+- `DELETE /api/notes/:id` - 删除笔记
+
+### 笔记本管理
+
+- `GET /api/notebooks` - 列出笔记本
+- `POST /api/notebooks` - 创建笔记本
+- `PUT /api/notebooks/:id` - 更新笔记本
+- `DELETE /api/notebooks/:id` - 删除笔记本（级联删除笔记）
+
+### 标签管理
+
+- `GET /api/tags` - 列出标签
+- `POST /api/tags` - 创建标签
+- `POST /api/notes/:id/tags` - 绑定标签到笔记
+- `GET /api/tags/:id/notes` - 获取标签下笔记
+- `DELETE /api/tags/:id` - 删除标签并解绑关联
 
 ## 快速开始
 
-### 1\. 前置要求
+### 前置要求
 
-  * Go `1.25.5+`
-  * MySQL `5.7+`
+- Go `1.25.5+`
+- MySQL `5.7+`
+- Redis `6+`
 
-### 2\. 配置环境
+### 环境变量配置
 
-在项目根目录创建 `.env` 文件：
+在项目根目录创建 `.env`：
 
 ```ini
 MYSQL_DSN=user:password@tcp(127.0.0.1:3306)/cloud_notes?charset=utf8mb4&parseTime=True&loc=Local
 JWT_SECRET=your-secure-secret-key-here
+REDIS_ADDR=127.0.0.1:6379
+REDIS_DB=0
+REDIS_PASSWORD=
 ```
 
-### 3\. 安装运行
+### 启动项目
 
 ```bash
-# 下载依赖
 go mod tidy
-
-# 启动服务
 go run cmd/main.go
 ```
 
-服务器默认运行在 `http://localhost:8080`。
+默认监听 `http://localhost:8080`。
 
------
+## Redis 关键实现
+
+项目使用 Redis 提升安全性与性能：
+
+- **JWT 黑名单**: 用户登出或会话撤销时，将 token 写入 Redis 黑名单，确保立即失效。
+- **活跃设备管理**: 使用 Redis Sorted Set 维护每个用户的活跃设备，最多保留 2 个设备，并在超限时自动撤销最旧会话。
+- **登录限流**: `POST /api/login` 按 IP + username 限制请求频率，1 分钟内最多 10 次。
+- **结果缓存**: 对笔记、笔记本、标签列表结果进行 Redis 缓存，加速高频读取。
+- **缓存失效**: 数据变更时清理相关缓存，保持读取一致性。
+
+## 会话与安全策略
+
+- 登录成功后生成 JWT，包含 `user_id` 和 `device_id`。
+- JWT 中间件校验签名、Token 黑名单、数据库会话有效性与设备限制。
+- 单设备登出时撤销当前会话并加入黑名单。
+- 全局登出时撤销用户所有会话并清空活跃设备集合。
 
 ## 项目结构
 
 ```text
 cloud_notes/
-├── cmd/                # 程序入口
+├── cmd/
+│   └── main.go            # 程序入口
 ├── internal/
-│   ├── config/         # 配置初始化
-│   ├── handler/        # 接口处理
-│   ├── service/        # 业务逻辑
-│   ├── repository/     # 数据库交互
-│   ├── model/          # 数据实体
-│   ├── middleware/     # 中间件 (JWT)
-│   └── router/         # 路由注册
-├── .env                # 环境变量
-└── go.mod              # 依赖管理
+│   ├── config/            # DB、Redis、JWT 初始化
+│   ├── handler/           # HTTP 接口处理
+│   ├── middleware/        # 认证与限流
+│   ├── model/             # 数据结构
+│   ├── repository/        # 数据访问与 Redis 操作
+│   ├── router/            # 路由注册
+│   └── service/           # 业务逻辑
+├── .env                   # 环境变量示例
+└── go.mod                 # 依赖管理
 ```
-
------
 
 ## 开发规范
 
-1.  **代码风格**: 严格执行 `gofmt`。
-2.  **依赖注入**: 避免使用 `init()` 函数和全局变量。
-3.  **错误处理**: 区分业务错误（4xx）与系统错误（5xx）。
-4.  **数据安全**: 任何 Repository 操作必须携带 `userID` 约束。
+1. 执行 `gofmt` 保持格式一致。
+2. 使用 `go mod tidy` 管理依赖。
+3. 区分业务错误（4xx）与系统错误（5xx）。
+4. Repository 操作需遵循 `user_id` 访问约束。
+5. 机密信息通过环境变量管理。
