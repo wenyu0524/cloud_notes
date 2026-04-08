@@ -51,7 +51,7 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		// 3.5、检查token是否在黑名单中（登出即时失效）
+		// 4、检查token是否在黑名单中（登出即时失效）
 		isBlacklisted, err := repository.IsTokenBlacklisted(tokenStr)
 		if err == nil && isBlacklisted {
 			c.JSON(http.StatusUnauthorized, gin.H{"msg": "token 已被撤销"})
@@ -59,7 +59,7 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		// 4、检验claims
+		// 5、检验claims
 		claims, ok := token.Claims.(jwt.MapClaims)
 		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{"msg": "无效 claims"})
@@ -67,7 +67,7 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		// 5、检验user_id 和 device_id
+		// 6、检验user_id 和 device_id
 		v, exists := claims["user_id"]
 		if !exists {
 			c.JSON(http.StatusUnauthorized, gin.H{"msg": "claims 缺少 user_id"})
@@ -94,7 +94,7 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		// 6、验证session
+		// 7、验证session
 		_, err = repository.GetSessionByUserAndDevice(uint(userID), deviceID)
 		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"msg": "登录已失效"})
@@ -102,7 +102,7 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		// 7、检查活跃设备数量（防止超出限制）
+		// 8、检查活跃设备数量（防止超出限制）
 		count, err := repository.GetActiveSessionCount(uint(userID))
 		if err != nil || count > 2 {
 			c.JSON(http.StatusUnauthorized, gin.H{"msg": "超出设备限制"})
@@ -110,7 +110,7 @@ func JWTAuth() gin.HandlerFunc {
 			return
 		}
 
-		// 8、更新last_active_at
+		// 9、更新last_active_at
 		err = repository.UpdateSessionLastActive(uint(userID), deviceID)
 		if err == nil {
 			_ = repository.AddDeviceToActiveSet(uint(userID), deviceID, float64(time.Now().Unix()))
